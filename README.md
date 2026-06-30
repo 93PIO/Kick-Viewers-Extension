@@ -30,6 +30,8 @@ Since this extension is currently distributed independently, you can install it 
 
 ## 📝 License
 This project is licensed under the **MIT License**. Feel free to use, modify, and distribute it.
+<img width="1383" height="753" alt="image" src="https://github.com/user-attachments/assets/c8c87ab4-b18b-4eee-8fa7-7549bbe0ede1" />
+
 <img width="692" height="137" alt="image" src="https://github.com/user-attachments/assets/4b57a233-106a-4574-a7fe-82d6067f10ac" />
 
 <img width="309" height="373" alt="image" src="https://github.com/user-attachments/assets/c38e01a4-5aa9-4429-8a47-d61ef7d1fb82" />
