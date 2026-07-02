@@ -3,47 +3,13 @@
   console.log("🟢 [Kick Ext] تم بدء تشغيل ملف content.js بنجاح.");
 
   // ==========================================
-  // 1. زراعة الجاسوس
+  // 1. ملاحظة: تم نقل حقن "الجاسوس" (spy.js) إلى manifest.json مباشرة
   // ==========================================
-  // يجب حقن كود المراقبة بشكل متزامن (sync) وقبل أي كود آخر في الصفحة،
-  // لأن الاستبدال يعتمد على استبدال window.WebSocket قبل أن تفتح صفحة
-  // Kick اتصال الشات الخاص بها. لذلك الكود مضمّن هنا مباشرة كنص ثابت
-  // (نفس محتوى spy.js حرفياً) بدل تحميله عبر src أو XHR، فينفَّذ فوراً
-  // ومتزامناً عند إلحاقه بالـ DOM، مع "run_at": "document_start" في
-  // manifest.json لضمان أبكر توقيت ممكن.
-  try {
-    const script = document.createElement('script');
-    script.textContent = `(function() {
-    const OriginalWebSocket = window.WebSocket;
-    window.WebSocket = function(url, protocols) {
-        const ws = new OriginalWebSocket(url, protocols);
-        ws.addEventListener('message', function(event) {
-            if (typeof event.data === 'string' && event.data.includes('ChatMessageEvent')) {
-                try {
-                    const outer = JSON.parse(event.data);
-                    const inner = JSON.parse(outer.data);
-                    const username = inner?.sender?.username || null;
-                    document.dispatchEvent(new CustomEvent('KickRealtimeMessage', {
-                        detail: { username }
-                    }));
-                } catch (e) {
-                    document.dispatchEvent(new CustomEvent('KickRealtimeMessage', {
-                        detail: { username: null }
-                    }));
-                }
-            }
-        });
-        return ws;
-    };
-    Object.setPrototypeOf(window.WebSocket, OriginalWebSocket);
-    window.WebSocket.prototype = OriginalWebSocket.prototype;
-})();`;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
-    console.log("🟢 [Kick Ext] تم حقن كود المراقبة بنجاح.");
-  } catch (e) {
-    console.warn("🔴 [Kick Ext] فشل حقن كود المراقبة، سيتم تعطيل عدّاد الرسائل:", e);
-  }
+  // spy.js أصبح مُسجَّلاً كـ content script مستقل بخاصية "world": "MAIN"
+  // في manifest.json، فيحقنه Chrome نفسه بشكل حتمي (deterministic) قبل أي
+  // سكربت آخر في صفحة Kick — بدلاً من إنشائه يدوياً هنا عبر وسم <script>
+  // وتحميله بشكل غير متزامن (وهو ما كان يسبب نجاح/فشل العدّاد بشكل متقطع
+  // حسب سرعة تحميل الصفحة في كل مرة).
 
   // ==========================================
   // 2. الثوابت والإعدادات
@@ -103,11 +69,13 @@
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     if (pathParts.length === 0) return null;
     const name = pathParts[0];
+    
+    // قائمة موسعة لتجاهل الصفحات العامة التي ليست قنوات
     const ignoreList = [
       'categories', 'search', 'following', 'auth', 'dashboard', 'video', 'clip',
       'browse', 'subscriptions', 'wallet', 'settings', 'notifications',
       'moderator', 'support', 'about', 'privacy', 'terms', 'jobs', 'store',
-      'signup', 'login', 'embed-chat', 'discover', 'leaderboards'
+      'signup', 'login', 'embed-chat', 'discover', 'leaderboards', 'network'
     ];
     return ignoreList.includes(name) ? null : name;
   }
@@ -261,8 +229,7 @@
       anchorEl.insertAdjacentElement("beforebegin", badge);
     }
 
-    document.getElementById("kick-viewers-val").textContent =
-      (count === null || count === undefined) ? "—" : count.toLocaleString();
+    document.getElementById("kick-viewers-val").textContent = (count === null || count === undefined) ? "—" : count.toLocaleString();
     document.getElementById("kick-viewers-lbl").textContent = getLabel("viewers");
   }
 
@@ -331,6 +298,9 @@
   // 8. استقبال رسائل الشات من الجاسوس
   // ==========================================
   document.addEventListener('KickRealtimeMessage', (event) => {
+    // توقف عن استهلاك الموارد إذا تم إيقاف العداد من الإعدادات
+    if (!cfg.showChat) return; 
+
     if (sessionMsgCount < 999999) {
       sessionMsgCount++;
     }
@@ -341,10 +311,6 @@
   // ==========================================
   // 9. جلب المشاهدين من الـ API
   // ==========================================
-  // ملاحظة: /api/v1/channels/{slug} هو مسار داخلي غير موثّق رسمياً من Kick
-  // (وليس جزءاً من الـ API الرسمي المبني على OAuth على api.kick.com)، لذلك
-  // قد يتغير أو يُحجب دون إشعار مسبق. للتعامل مع هذا الاحتمال، لا نترك
-  // الرقم القديم معروضاً بشكل مضلِّل عند تكرر الفشل، بل نعرض "—" بدلاً منه.
   let viewersFailCount = 0;
   const VIEWERS_FAIL_THRESHOLD = 2;
 
@@ -368,8 +334,7 @@
           viewersFailCount = 0;
           updateViewersBadge(data.livestream.viewer_count);
         } else {
-          // القناة موجودة لكن الاستجابة لا تحتوي على بث مباشر (ليست حالة خطأ)
-          viewersFailCount = 0;
+          viewersFailCount = 0; // القناة تعمل ولكن ليس بها بث مباشر
         }
       } else {
         throw new Error(`HTTP ${response.status}`);
@@ -378,8 +343,9 @@
       if (err.name !== 'AbortError') {
         viewersFailCount++;
         console.warn("[Kick Ext] فشل جلب بيانات المشاهدين:", err);
+        // عرض "—" إذا استمر الفشل بدلاً من إظهار أرقام وهمية
         if (viewersFailCount >= VIEWERS_FAIL_THRESHOLD) {
-          updateViewersBadge(null); // اعرض "—" بدل رقم قديم قد يكون مضللاً
+          updateViewersBadge(null); 
         }
       }
     }
@@ -429,6 +395,7 @@
 
     sessionMsgCount = 0;
     uniqueChatters.clear();
+    viewersFailCount = 0;
   }
 
   // ==========================================
